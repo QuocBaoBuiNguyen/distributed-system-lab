@@ -2,44 +2,34 @@
 package main
 
 import (
-	"encoding/gob"
 	"encoding/json"
 	"fmt"
+
 	"log"
 	"net"
 	"net/rpc"
+	"strconv"
 
-	"lab01_rpc/common"
+	. "lab01_rpc/common"
 
 	"github.com/marcelloh/fastdb"
 )
 
-type FastDBService struct{
+type FastDBService struct {
 	Store *fastdb.DB
 }
 
-type SetArgs struct {
-	Bucket string
-	Key    int
-	Value  interface{}
-}
-
-type GetArgs struct {
-	Bucket string
-	Key    int
-}
-
 func (p *FastDBService) Set(args *SetArgs, reply *string) error {
-	fmt.Println("Bucket: %s, Key: %s, Value: %s", args.Bucket , args.Key, args.Value)
+	fmt.Println("Set: Bucket: %s, Key: %s, Value: %s.", args.Bucket, args.Key, args.Value)
 
-	bytesVal, err := json.Marshal(args.Value)
+	dbRecord, err := json.Marshal(args.Value)
 
 	if err != nil {
 		*reply = "Error while marshalling request"
 		return nil
 	}
 
-	p.Store.Set(args.Bucket, args.Key, bytesVal)
+	p.Store.Set(args.Bucket, args.Key, dbRecord)
 
 	*reply = "Saved successfully"
 
@@ -47,21 +37,58 @@ func (p *FastDBService) Set(args *SetArgs, reply *string) error {
 }
 
 func (p *FastDBService) Get(args *GetArgs, reply *string) error {
-	fmt.Println("Bucket: %s, Key: %s, Value: %s", args.Bucket , args.Key)
+	fmt.Println("Get: Bucket: %s, Key: %s", args.Bucket, args.Key)
 
-	bytesVal, status := p.Store.Get(args.Bucket, args.Key)
+	dbRecord, status := p.Store.Get(args.Bucket, args.Key)
 
 	if !status {
 		reply = nil
 		return nil
 	}
 
-	json := string(bytesVal)
+	json := string(dbRecord)
 	*reply = json
 
-	fmt.Println("Key: %s, Value: %s", args.Key , json)
+	fmt.Println("Key: %s, Value: %s", args.Key, json)
 
 	return nil
+}
+
+func (p *FastDBService) GetAll(args *GetAllArgs, reply *map[int]string) error {
+	fmt.Println("Get All: Bucket: %s", args.Bucket)
+
+	dbRecords, err := p.Store.GetAll(args.Bucket)
+
+	if err != nil {
+		return fmt.Errorf("bucket not found: %s", args.Bucket)
+	}
+
+	result := make(map[int]string)
+	for key, record := range dbRecords {
+		result[key] = string(record)
+	}
+
+	*reply = result
+
+	return nil
+}
+
+func (p *FastDBService) Delete(args *DeleteArgs, reply *string) error {
+	fmt.Println("Delete: Bucket: %s.", args.Bucket)
+
+	isDeleted, err := p.Store.Del(args.Bucket, args.Key)
+
+	if err != nil {
+		return fmt.Errorf("bucket not found: %s", args.Bucket)
+	}
+
+	if isDeleted {
+		*reply = "Deleted ele own this key: " + strconv.Itoa(args.Key) + " successfully."
+		return nil
+	}
+	*reply = "Error occured while deleting this object."
+	return nil
+
 }
 
 func main() {
@@ -86,8 +113,6 @@ func main() {
 
 	log.Print("Sever is listening on port 1234")
 
-	gob.Register(common.User{})
-
 	service := &FastDBService{
 		Store: store,
 	}
@@ -95,13 +120,11 @@ func main() {
 	rpc.RegisterName("FastDB", service)
 
 	for {
-		// Chấp nhận connection
 		conn, err := listener.Accept()
 		if err != nil {
 			log.Fatal("Accept error:", err)
 		}
 
-		// Phục vụ lời gọi Client trên một goroutine khác để tiếp tục nhận các lời gọi RPC khác
 		go rpc.ServeConn(conn)
 	}
 }
