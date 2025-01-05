@@ -48,7 +48,7 @@ func (c *CommandHandlers) HandlerSetCommand() func([]string) {
 func (c *CommandHandlers) HandlerGetCommand() func([]string) {
 	return func(parts []string) {
 		if len(parts) < 2 {
-			fmt.Println("Usage: get <bucket> <key>")
+			fmt.Println("Usage: GET <bucket> <key>")
 			return
 		}
 
