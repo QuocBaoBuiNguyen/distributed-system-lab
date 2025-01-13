@@ -1,4 +1,4 @@
-module lab01_rpc
+module lab02_replication
 
 go 1.23.4
 

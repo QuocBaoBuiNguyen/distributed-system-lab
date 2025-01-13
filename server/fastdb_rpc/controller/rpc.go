@@ -2,18 +2,27 @@ package controller
 
 import (
 	"encoding/json"
-	"lab01_rpc/common"
+	"lab02_replication/common"
 	"log"
 	"strconv"
+	"sync"
+	"time"
 
 	"github.com/marcelloh/fastdb"
 )
 
 type FastDBService struct {
 	Repository *fastdb.DB
+	mu         sync.RWMutex
 }
 
 func (p *FastDBService) Set(args *common.SetArgs, reply *string) error {
+	start := time.Now()
+	log.Printf("[SET] Starting for key: %d at %s\n", args.Key, start.Format(time.StampMilli))
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	log.Printf("SET: Bucket=%s, Key=%d, Value=%s, Status=processing", args.Bucket, args.Key, args.Value)
 
 	dbRecord, err := json.Marshal(args.Value)
@@ -26,10 +35,19 @@ func (p *FastDBService) Set(args *common.SetArgs, reply *string) error {
 	p.Repository.Set(args.Bucket, args.Key, dbRecord)
 	log.Printf("SET: Bucket=%s, Key=%d, Value=%s, Status=success", args.Bucket, args.Key, args.Value)
 	*reply = "Saved successfully"
+
+	log.Printf("[SET] Completed for key: %d at %s (Duration: %v)\n", args.Key, time.Now().Format(time.StampMilli), time.Since(start))
+
 	return nil
 }
 
 func (p *FastDBService) Get(args *common.GetArgs, reply *string) error {
+	start := time.Now()
+	log.Printf("[GET] Starting for key: %d at %s\n", args.Key, start.Format(time.StampMilli))
+
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
 	log.Printf("GET: Bucket=%s, Key=%d, Status=processing", args.Bucket, args.Key)
 
 	dbRecord, status := p.Repository.Get(args.Bucket, args.Key)
@@ -41,10 +59,19 @@ func (p *FastDBService) Get(args *common.GetArgs, reply *string) error {
 
 	*reply = string(dbRecord)
 	log.Printf("GET: Bucket=%s, Key=%d, Status=success, Value=%s", args.Bucket, args.Key, *reply)
+
+	log.Printf("[GET] Completed for key: %d at %s (Duration: %v)\n", args.Key, time.Now().Format(time.StampMilli), time.Since(start))
+
 	return nil
 }
 
 func (p *FastDBService) GetAll(args *common.GetAllArgs, reply *map[int]string) error {
+	start := time.Now()
+	log.Printf("[GET ALL] Starting for bucket: %s at %s\n", args.Bucket, start.Format(time.StampMilli))
+
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
 	log.Printf("GET ALL: Bucket=%s, Status=processing", args.Bucket)
 
 	dbRecords, err := p.Repository.GetAll(args.Bucket)
@@ -65,10 +92,19 @@ func (p *FastDBService) GetAll(args *common.GetAllArgs, reply *map[int]string) e
 
 	*reply = result
 	log.Printf("GET ALL: Bucket=%s, Status=success, RecordCount=%d", args.Bucket, len(dbRecords))
+
+	log.Printf("[GET ALL] Completed for bucket: %s at %s (Duration: %v)\n", args.Bucket, time.Now().Format(time.StampMilli), time.Since(start))
+
 	return nil
 }
 
 func (p *FastDBService) Delete(args *common.DeleteArgs, reply *string) error {
+	start := time.Now()
+	log.Printf("[DELETE] Starting for key: %d at %s\n", args.Key, start.Format(time.StampMilli))
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	log.Printf("DELETE: Bucket=%s, Key=%d, Status=processing", args.Bucket, args.Key)
 
 	isDeleted, err := p.Repository.Del(args.Bucket, args.Key)
@@ -81,6 +117,9 @@ func (p *FastDBService) Delete(args *common.DeleteArgs, reply *string) error {
 	if isDeleted {
 		*reply = "Deleted entry (which owns key: " + strconv.Itoa(args.Key) + ") successfully."
 		log.Printf("DELETE: Bucket=%s, Key=%d, Status=success", args.Bucket, args.Key)
+
+		log.Printf("[DELETE] Completed for key: %d at %s (Duration: %v)\n", args.Key, time.Now().Format(time.StampMilli), time.Since(start))
+
 		return nil
 	}
 

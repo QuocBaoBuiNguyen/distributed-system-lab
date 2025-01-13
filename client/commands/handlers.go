@@ -5,7 +5,7 @@ import (
 	"net/rpc"
 	"strconv"
 
-	"lab01_rpc/common"
+	"lab02_replication/common"
 )
 
 type CommandHandlers struct {

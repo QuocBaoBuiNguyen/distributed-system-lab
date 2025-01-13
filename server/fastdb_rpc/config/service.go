@@ -3,7 +3,7 @@ package config
 import (
 	"net/rpc"
 
-	"lab01_rpc/server/controller"
+	"lab02_replication/server/fastdb_rpc/controller"
 
 	"github.com/marcelloh/fastdb"
 )

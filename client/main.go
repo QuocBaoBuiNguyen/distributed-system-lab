@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"log"
 
-	"lab01_rpc/client/commands"
-	"lab01_rpc/client/config"
-	"lab01_rpc/client/dispatcher"
+	"lab02_replication/client/commands"
+	"lab02_replication/client/config"
+	"lab02_replication/client/dispatcher"
 )
 
 func main() {
