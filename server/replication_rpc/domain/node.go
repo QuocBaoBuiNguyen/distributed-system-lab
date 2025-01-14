@@ -102,6 +102,14 @@ func (node *Node) SendPeerRequest(rpcClient *rpc.Client, message event.Message) 
 	return reply, err
 }
 
+func (node *Node) StartLeaderElection() {
+	node.RegisterWithPeers()
+
+	warmupTime := 5 * time.Second
+	time.Sleep(warmupTime)
+	node.TriggerLeaderElection()
+}
+
 func (node *Node) TriggerLeaderElection() {
 	isHighestRankedNodeAvailable := false
 	peers := node.Peers.ToList()
@@ -166,3 +174,4 @@ func (node *Node) connect(peerAddr string) *rpc.Client {
 func (node *Node) IsItself(id string) bool {
 	return node.ID == id
 }
+

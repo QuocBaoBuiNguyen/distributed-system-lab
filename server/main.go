@@ -2,67 +2,28 @@
 package main
 
 import (
-	"log"
+	"lab02_replication/server/fastdb_rpc/config"
+	"lab02_replication/server/replication_rpc/domain"
 	"net"
 	"net/rpc"
 	"os"
 	"os/signal"
-	"time"
-	"lab02_replication/server/fastdb_rpc/config"
-	"lab02_replication/server/replication_rpc/domain"
 )
-
-func checkError(err error) {
-	if err != nil {
-		log.Fatalf("%v", err)
-	}
-}
 
 func main() {
 
-	go func() {
-		node := domain.NewNode()
-		
-		nodeListener, err := net.Listen("tcp", node.Addr)
-		checkError(err)
+	rpcServer := rpc.NewServer()
 
-		rpcServer := rpc.NewServer()
-		rpcServer.Register(node)
+	repository, _ := config.InitializeDB()
+	config.RegisterRPCService(rpcServer, repository)
 
-		go rpcServer.Accept(nodeListener)
+	node := domain.NewNode()
+	config.RegisterRPCNodeReplication(rpcServer, node)
 
-		node.RegisterWithPeers();
+	nodeListener, _ := net.Listen("tcp", node.Addr)
+	go rpcServer.Accept(nodeListener)
 
-		warmupTime := 5 * time.Second
-		time.Sleep(warmupTime)
-		node.TriggerLeaderElection()
-
-	}()
-
-	go func() {
-		clientListener, err := net.Listen("tcp", ":1234")
-		checkError(err)
-
-		repository, err := config.InitializeDB()
-		checkError(err)
-
-		err = config.RegisterRPCService(repository)
-		checkError(err)
-
-		defer func() {
-			err = repository.Close()
-			checkError(err)
-		}()
-
-		log.Print("message = Sever is listening on port 1234.")
-
-		for {
-			conn, err := clientListener.Accept()
-			checkError(err)
-
-			go rpc.ServeConn(conn)
-		}
-	}()
+	node.StartLeaderElection()
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
