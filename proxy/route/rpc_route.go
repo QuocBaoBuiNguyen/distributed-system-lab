@@ -18,10 +18,13 @@ func (route *RouteService) PrimaryNodeProxyUpdate(addr *common.PrimaryNodeProxyU
 	route.mu.Lock()
 	defer route.mu.Unlock()
 
-	route.PrimaryNodeClient.Close()
-	route.PrimaryNodeClient, _ = rpc.Dial("tcp", addr.Port)
+	if route.PrimaryNodeClient != nil {
+		route.PrimaryNodeClient.Close()
+	}
 
+	route.PrimaryNodeClient, _ = rpc.Dial("tcp", addr.Port)
 	log.Info().Msgf("[Proxy Server] - [Event]: new primary node has been promoted, updated listener port: %s", addr.Port)
+
 	return nil
 }
 

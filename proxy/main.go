@@ -23,17 +23,16 @@ func main() {
 	checkError(err)
 
 	rpcServer := rpc.NewServer()
-	rpcClient, _ := rpc.Dial("tcp", ":6001")
 
 	routeService := &route.RouteService{
-		PrimaryNodeClient: rpcClient,
+		PrimaryNodeClient: nil,
 	}
 
 	err = rpcServer.RegisterName("ProxyServer", routeService)
 	checkError(err)
 
 	log.Print("message = [Proxy server] is listening on [port: 1234]")
-	
+
 	go rpcServer.Accept(proxyListener)
 
 	c := make(chan os.Signal, 1)

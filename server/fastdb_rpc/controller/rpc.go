@@ -57,7 +57,7 @@ func (p *FastDBService) Set(args *common.SetArgs, reply *string) error {
 			Type:        operation.SET,
 		}
 		p.BroadcastOperationToPeers(op)
-		log.Printf("[SET]: Broadcasted SET Operation To Other Peers")
+		log.Printf("[SET]: Broadcast SET Operation To Other Peers")
 	}
 
 	return nil
@@ -136,17 +136,17 @@ func (p *FastDBService) Delete(args *common.DeleteArgs, reply *string) error {
 		return err
 	}
 
-	if isDeleted {
-		*reply = "Deleted entry (which owns key: " + strconv.Itoa(args.Key) + ") successfully."
-		log.Printf("DELETE: Bucket=%s, Key=%d, Status=success", args.Bucket, args.Key)
-
-		log.Printf("[DELETE] Completed for key: %d at %s (Duration: %v)\n", args.Key, time.Now().Format(time.StampMilli), time.Since(start))
+	if !isDeleted {
+		*reply = "Key not found."
+		log.Printf("DELETE: Bucket=%s, Key=%d, Status=not_found", args.Bucket, args.Key)
 
 		return nil
 	}
 
-	*reply = "Key not found."
-	log.Printf("DELETE: Bucket=%s, Key=%d, Status=not_found", args.Bucket, args.Key)
+	*reply = "Deleted entry (which owns key: " + strconv.Itoa(args.Key) + ") successfully."
+	log.Printf("DELETE: Bucket=%s, Key=%d, Status=success", args.Bucket, args.Key)
+
+	log.Printf("[DELETE] Completed for key: %d at %s (Duration: %v)\n", args.Key, time.Now().Format(time.StampMilli), time.Since(start))
 
 	if p.Node.IsLeader() {
 		op := &operation.Operation{
@@ -154,7 +154,7 @@ func (p *FastDBService) Delete(args *common.DeleteArgs, reply *string) error {
 			Type:        operation.DELETE,
 		}
 		p.BroadcastOperationToPeers(op)
-		log.Printf("[DELETE]: Broadcasted DELETE Operation To Other Peers")
+		log.Printf("[DELETE]: Broadcast DELETE Operation To Other Peers")
 	}
 
 	return nil
