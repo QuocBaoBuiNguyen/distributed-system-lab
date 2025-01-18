@@ -19,3 +19,7 @@ type DeleteArgs struct {
 	Bucket string
 	Key    int
 }
+
+type PrimaryNodeProxyUpdateArgs struct {
+	NewPrimaryAddr string
+}

@@ -1,5 +1,6 @@
 package event
 
 const (
-	LeaderElected = "leaderElected"
+	LeaderElected      = "leaderElected"
+	ProxyLeaderElected = "proxyLeaderElected"
 )

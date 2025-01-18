@@ -36,7 +36,7 @@ func (c *CommandHandlers) HandlerSetCommand() func([]string) {
 		}
 
 		var reply string
-		err := c.Client.Call("FastDB.Set", args, &reply)
+		err := c.Client.Call("ProxyServer.Set", args, &reply)
 		if err != nil {
 			fmt.Println("Error:", err)
 			return
@@ -60,7 +60,7 @@ func (c *CommandHandlers) HandlerGetCommand() func([]string) {
 			Key:    key,
 		}
 		var reply string
-		err := c.Client.Call("FastDB.Get", args, &reply)
+		err := c.Client.Call("ProxyServer.Get", args, &reply)
 		if err != nil {
 			fmt.Println("Error:", err)
 			return
@@ -82,7 +82,7 @@ func (c *CommandHandlers) HandlerGetAllCommand() func([]string) {
 			Bucket: bucket,
 		}
 		var reply map[int]string
-		err := c.Client.Call("FastDB.GetAll", args, &reply)
+		err := c.Client.Call("ProxyServer.GetAll", args, &reply)
 		if err != nil {
 			fmt.Println("Error:", err)
 			return
@@ -108,7 +108,7 @@ func (c *CommandHandlers) HandlerDeleteCommand() func([]string) {
 			Key:    key,
 		}
 		var reply string
-		err := c.Client.Call("FastDB.Delete", args, &reply)
+		err := c.Client.Call("ProxyServer.Delete", args, &reply)
 
 		if err != nil {
 			fmt.Println("Error:", err)
