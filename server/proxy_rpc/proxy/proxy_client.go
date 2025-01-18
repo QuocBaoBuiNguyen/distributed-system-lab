@@ -22,7 +22,7 @@ func (p *ProxyServer) PrimaryNodeProxyUpdate(port string) error {
 	leaderAddrReq := &common.PrimaryNodeProxyUpdateArgs{
 		Port: port,
 	}
-	log.Info().Msgf("Proxy Server - [Event]: Routing command to primary node %s", port)
+	log.Info().Msgf("[Primary Node] - [Event]: Updating proxy server config: %s", port)
 	err := p.ProxyClient.Call("ProxyServer.PrimaryNodeProxyUpdate", leaderAddrReq, &reply)
 	return err
 }
