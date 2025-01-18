@@ -17,13 +17,12 @@ func NewProxyServer() *ProxyServer {
 	}
 }
 
-func (p *ProxyServer) PrimaryNodeProxyUpdate(newPrimaryNodeAddr string) error {
+func (p *ProxyServer) PrimaryNodeProxyUpdate(port string) error {
 	var reply string
 	leaderAddrReq := &common.PrimaryNodeProxyUpdateArgs{
-		NewPrimaryAddr: newPrimaryNodeAddr,
+		Port: port,
 	}
-	log.Info().Msgf("Calling proxy server from leader")
+	log.Info().Msgf("Proxy Server - [Event]: Routing command to primary node %s", port)
 	err := p.ProxyClient.Call("ProxyServer.PrimaryNodeProxyUpdate", leaderAddrReq, &reply)
-	log.Info().Msgf(" Error%s ", err)
 	return err
 }

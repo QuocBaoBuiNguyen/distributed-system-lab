@@ -1,11 +1,12 @@
 package route
 
 import (
+	"lab02_replication/common"
+
+	"github.com/rs/zerolog/log"
+
 	"net/rpc"
 	"sync"
-
-	"fmt"
-	"lab02_replication/common"
 )
 
 type RouteService struct {
@@ -13,14 +14,14 @@ type RouteService struct {
 	mu                sync.Mutex
 }
 
-func (route *RouteService) PrimaryNodeProxyUpdate(newPrimaryAddr *common.PrimaryNodeProxyUpdateArgs, reply *string) error {
+func (route *RouteService) PrimaryNodeProxyUpdate(addr *common.PrimaryNodeProxyUpdateArgs, reply *string) error {
 	route.mu.Lock()
 	defer route.mu.Unlock()
 
-	fmt.Println("Proxy: Primary node updated to %s\n", newPrimaryAddr.NewPrimaryAddr)
 	route.PrimaryNodeClient.Close()
-	route.PrimaryNodeClient, _ = rpc.Dial("tcp", newPrimaryAddr.NewPrimaryAddr)
+	route.PrimaryNodeClient, _ = rpc.Dial("tcp", addr.Port)
 
+	log.Info().Msgf("Proxy Server - [Event]: new primary node has been promoted, updated listener port: %s", addr.Port)
 	return nil
 }
 

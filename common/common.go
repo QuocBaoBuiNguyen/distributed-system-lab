@@ -21,5 +21,5 @@ type DeleteArgs struct {
 }
 
 type PrimaryNodeProxyUpdateArgs struct {
-	NewPrimaryAddr string
+	Port string
 }

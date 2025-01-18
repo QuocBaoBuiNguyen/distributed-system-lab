@@ -20,13 +20,13 @@ func main() {
 
 	rpcServer := rpc.NewServer()
 
-	repository, _ := config.InitializeDB()
-	config.RegisterRPCService(rpcServer, repository)
-
 	node := domain.NewNode()
 	config.RegisterRPCNodeReplication(rpcServer, node)
 
-	log.Info().Msgf("%s is running on port %s, listening to proxy server at %s", node.ID, node.Addr, "1234")
+	repository, _ := config.InitializeDB()
+	config.RegisterRPCService(rpcServer, repository, node)
+
+	log.Info().Msgf("FastDB Node - [Event]: %s is running on port %s, listening to proxy server at %s", node.ID, node.Addr, "1234")
 
 	nodeListener, _ := net.Listen("tcp", node.Addr)
 	go rpcServer.Accept(nodeListener)
@@ -40,8 +40,7 @@ func main() {
 
 func setLogConfigurations() {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-
-	// https://github.com/rs/zerolog#add-file-and-line-number-to-log
+	
 	zerolog.CallerMarshalFunc = func(pc uintptr, file string, line int) string {
 		short := file
 		for i := len(file) - 1; i > 0; i-- {

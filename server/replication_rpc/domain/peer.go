@@ -7,7 +7,7 @@ import (
 
 type Peer struct {
 	ID        string
-	rpcClient *rpc.Client
+	RPCClient *rpc.Client
 }
 
 type Peers struct {
@@ -22,11 +22,11 @@ func NewPeers() *Peers {
 	}
 }
 
-func (p *Peers) Add(ID string, rpcClient *rpc.Client) {
+func (p *Peers) Add(ID string, RPCClient *rpc.Client) {
 	p.Lock()
 	defer p.Unlock()
 
-	p.peerByID[ID] = &Peer{ID: ID, rpcClient: rpcClient}
+	p.peerByID[ID] = &Peer{ID: ID, RPCClient: RPCClient}
 }
 
 func (p *Peers) Get(ID string) *Peer {

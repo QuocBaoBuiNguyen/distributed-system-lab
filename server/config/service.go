@@ -10,10 +10,8 @@ import (
 	"github.com/marcelloh/fastdb"
 )
 
-func RegisterRPCService(rpcServer *rpc.Server, repository *fastdb.DB) error {
-	service := &controller.FastDBService{
-		Repository: repository,
-	}
+func RegisterRPCService(rpcServer *rpc.Server, repository *fastdb.DB, node *domain.Node) error {
+	service := controller.NewFastDBService(repository, node);
 	err := rpcServer.RegisterName("FastDB", service)
 	utils.CheckError(err)
 	return err

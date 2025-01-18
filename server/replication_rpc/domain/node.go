@@ -26,6 +26,7 @@ type Node struct {
 	Peers    *Peers
 	Proxy    *ProxyServer
 	eventBus event.Bus
+	isLeader bool
 }
 
 func getNodeID() (string, error) {
@@ -64,7 +65,7 @@ ping:
 	}
 
 	pingMessage := event.Message{FromPeerID: node.ID, Type: event.PING}
-	reply, err := node.SendPeerRequest(leader.rpcClient, pingMessage)
+	reply, err := node.SendPeerRequest(leader.RPCClient, pingMessage)
 
 	if err != nil {
 		log.Info().Msgf("Leader is down, new election about to start!")
@@ -136,7 +137,7 @@ func (node *Node) TriggerLeaderElection() {
 
 		electionMessage := event.Message{FromPeerID: node.ID, Type: event.ELECTION}
 
-		reply, _ := node.SendPeerRequest(peers[i].rpcClient, electionMessage)
+		reply, _ := node.SendPeerRequest(peers[i].RPCClient, electionMessage)
 
 		if reply.IsAliveMessage() {
 			log.Debug().Msgf("%s has at least 1 highest node", node.ID)
@@ -150,6 +151,7 @@ func (node *Node) TriggerLeaderElection() {
 		log.Info().Msgf("%s is a new leader", node.ID)
 		node.BroadcastToPeers(electedMessage)
 		node.Proxy.PrimaryNodeProxyUpdate(node.Addr)
+		node.isLeader = true;
 	}
 }
 
@@ -163,6 +165,7 @@ func (node *Node) DispatchClusterEvent(message event.Message, reply *event.Messa
 		leaderID := message.FromPeerID
 		log.Info().Msgf("Election is done. %s has a new leader %s", node.ID, leaderID)
 		node.eventBus.Emit(event.LeaderElected, leaderID)
+		node.isLeader = false
 		reply.Type = event.OK
 	case event.PING:
 		reply.Type = event.PONG
@@ -176,7 +179,7 @@ func (node *Node) BroadcastToPeers(message event.Message) {
 
 	for i := range peers {
 		peer := peers[i]
-		node.SendPeerRequest(peer.rpcClient, message)
+		node.SendPeerRequest(peer.RPCClient, message)
 	}
 }
 
@@ -193,4 +196,8 @@ retry:
 
 func (node *Node) IsItself(id string) bool {
 	return node.ID == id
+}
+
+func (node *Node) IsLeader() bool {
+	return node.isLeader;
 }

@@ -3,7 +3,10 @@ package controller
 import (
 	"encoding/json"
 	"lab02_replication/common"
+	"lab02_replication/server/fastdb_rpc/operation"
+	"lab02_replication/server/replication_rpc/domain"
 	"log"
+	"net/rpc"
 	"strconv"
 	"sync"
 	"time"
@@ -13,7 +16,17 @@ import (
 
 type FastDBService struct {
 	Repository *fastdb.DB
+	Node       *domain.Node
 	mu         sync.RWMutex
+}
+
+func NewFastDBService(repository *fastdb.DB, node *domain.Node) *FastDBService {
+	service := &FastDBService{
+		Repository: repository,
+		Node:       node,
+	}
+
+	return service
 }
 
 func (p *FastDBService) Set(args *common.SetArgs, reply *string) error {
@@ -37,6 +50,15 @@ func (p *FastDBService) Set(args *common.SetArgs, reply *string) error {
 	*reply = "Saved successfully"
 
 	log.Printf("[SET] Completed for key: %d at %s (Duration: %v)\n", args.Key, time.Now().Format(time.StampMilli), time.Since(start))
+
+	if p.Node.IsLeader() {
+		op := &operation.Operation{
+			RequestBody: args,
+			Type:        operation.SET,
+		}
+		p.BroadcastOperationToPeers(op)
+		log.Printf("[SET]: Broadcasted SET Operation To Other Peers")
+	}
 
 	return nil
 }
@@ -125,5 +147,37 @@ func (p *FastDBService) Delete(args *common.DeleteArgs, reply *string) error {
 
 	*reply = "Key not found."
 	log.Printf("DELETE: Bucket=%s, Key=%d, Status=not_found", args.Bucket, args.Key)
+
+	if p.Node.IsLeader() {
+		op := &operation.Operation{
+			RequestBody: args,
+			Type:        operation.DELETE,
+		}
+		p.BroadcastOperationToPeers(op)
+		log.Printf("[DELETE]: Broadcasted DELETE Operation To Other Peers")
+	}
+
 	return nil
+}
+
+func (p *FastDBService) BroadcastOperationToPeers(operation *operation.Operation) {
+	peers := p.Node.Peers.ToList()
+
+	for i := range peers {
+		peer := peers[i]
+		p.OperationHandler(peer.RPCClient, operation)
+	}
+
+}
+
+func (p *FastDBService) OperationHandler(rpcClient *rpc.Client, op *operation.Operation) {
+	switch op.Type {
+	case operation.SET:
+		var reply string
+		rpcClient.Call("FastDB.Set", op.RequestBody, &reply)
+	case operation.DELETE:
+		var reply string
+		rpcClient.Call("FastDB.Delete", op.RequestBody, &reply)
+
+	}
 }
