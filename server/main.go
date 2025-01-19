@@ -9,7 +9,7 @@ import (
 	"strconv"
 
 	"lab02_replication/server/config"
-	"lab02_replication/server/replication_rpc/domain"
+	"lab02_replication/server/replication_rpc/core"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -20,7 +20,7 @@ func main() {
 
 	rpcServer := rpc.NewServer()
 
-	node := domain.NewNode()
+	node := core.NewNode()
 	config.RegisterRPCNodeReplication(rpcServer, node)
 
 	repository, _ := config.InitializeDB()
@@ -40,7 +40,7 @@ func main() {
 
 func setLogConfigurations() {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	
+
 	zerolog.CallerMarshalFunc = func(pc uintptr, file string, line int) string {
 		short := file
 		for i := len(file) - 1; i > 0; i-- {

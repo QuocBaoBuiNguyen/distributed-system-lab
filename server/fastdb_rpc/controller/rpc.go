@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"lab02_replication/common"
 	"lab02_replication/server/fastdb_rpc/operation"
-	"lab02_replication/server/replication_rpc/domain"
+	"lab02_replication/server/replication_rpc/core"
 	"log"
 	"net/rpc"
 	"strconv"
@@ -16,11 +16,11 @@ import (
 
 type FastDBService struct {
 	Repository *fastdb.DB
-	Node       *domain.Node
+	Node       *core.Node
 	mu         sync.RWMutex
 }
 
-func NewFastDBService(repository *fastdb.DB, node *domain.Node) *FastDBService {
+func NewFastDBService(repository *fastdb.DB, node *core.Node) *FastDBService {
 	service := &FastDBService{
 		Repository: repository,
 		Node:       node,
