@@ -7,7 +7,7 @@ import (
 	"net/rpc"
 	"os"
 	"os/signal"
-	"lab02_replication/proxy/route"
+	"lab02_replication/proxy/router"
 	
 )
 
@@ -24,7 +24,7 @@ func main() {
 
 	rpcServer := rpc.NewServer()
 
-	routeService := &route.RouteService{
+	routeService := &router.RouteService{
 		PrimaryNodeClient: nil,
 	}
 
