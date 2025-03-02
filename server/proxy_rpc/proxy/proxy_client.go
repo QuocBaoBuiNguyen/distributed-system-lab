@@ -2,8 +2,9 @@ package proxy
 
 import (
 	"lab02_replication/common"
-	"github.com/rs/zerolog/log"
 	"net/rpc"
+
+	"github.com/rs/zerolog/log"
 )
 
 type ProxyServer struct {
@@ -17,12 +18,34 @@ func NewProxyServer() *ProxyServer {
 	}
 }
 
-func (p *ProxyServer) PrimaryNodeProxyUpdate(port string) error {
+func (p *ProxyServer) NotifyShardLeaderChange(shardID string, port string) error {
 	var reply string
-	leaderAddrReq := &common.PrimaryNodeProxyUpdateArgs{
-		Port: port,
+	shardLeaderInfo := &common.NodeInfoArgs{
+		Port:    port,
+		ShardID: shardID,
 	}
 	log.Info().Msgf("[Primary Node] - [Event]: Updating proxy server config: %s", port)
-	err := p.ProxyClient.Call("ProxyServer.PrimaryNodeProxyUpdate", leaderAddrReq, &reply)
+	err := p.ProxyClient.Call("ShardOrchestrator.NotifyShardLeaderChange", shardLeaderInfo, &reply)
+	return err
+}
+
+func (p *ProxyServer) GetNodesAddrByShardID(shardID string) []string {
+	var ports []string
+	shardInfo := &common.GetNodesByShardIDArgs{
+		ShardID: shardID,
+	}
+	log.Info().Msgf("[Primary Node] - [Event]: Getting nodes by shard id: %s", shardID)
+	p.ProxyClient.Call("ShardOrchestrator.GetNodesAddrByShardID", shardInfo, ports)
+	return ports
+}
+
+func (p *ProxyServer) RegisterNodeToShard(port string, shardID string) error {
+	var reply *string
+	nodeInfo := &common.NodeInfoArgs{
+		Port:    port,
+		ShardID: shardID,
+	}
+	log.Info().Msgf("[Primary Node] - [Event]: Registering node to shard: %s", port)
+	err := p.ProxyClient.Call("ShardOrchestrator.RegisterNodeToShard", nodeInfo, &reply)
 	return err
 }

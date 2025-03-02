@@ -20,6 +20,26 @@ type DeleteArgs struct {
 	Key    int
 }
 
-type PrimaryNodeProxyUpdateArgs struct {
-	Port string
+type NodeInfoArgs struct {
+	Port    string
+	ShardID string
+}
+
+type GetNodesByShardIDArgs struct {
+	ShardID string
+}
+
+type GetNodesByShardIDRes struct {
+	Ports []string
+}
+
+type HashRange struct {
+	Start uint64
+	End   uint64
+}
+
+type MigrationRequestArgs struct {
+	TargetShard   string
+	TargetAddress string
+	HashRange     HashRange
 }
