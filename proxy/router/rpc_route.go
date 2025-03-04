@@ -2,38 +2,33 @@ package router
 
 import (
 	"lab02_replication/common"
+	. "lab02_replication/proxy/shard"
 
 	"github.com/rs/zerolog/log"
 
-	"net/rpc"
 	"sync"
 )
 
 type RouteService struct {
-	PrimaryNodeClient *rpc.Client
+	ShardOrchestrator *ShardOrchestrator
 	mu                sync.Mutex
 }
 
-func (route *RouteService) PrimaryNodeProxyUpdate(addr *common.PrimaryNodeProxyUpdateArgs, reply *string) error {
-	route.mu.Lock()
-	defer route.mu.Unlock()
-
-	if route.PrimaryNodeClient != nil {
-		route.PrimaryNodeClient.Close()
+func NewRouteService(shardOrchestrator *ShardOrchestrator) *RouteService {
+	return &RouteService{
+		ShardOrchestrator: shardOrchestrator,
 	}
-
-	route.PrimaryNodeClient, _ = rpc.Dial("tcp", addr.Port)
-	log.Info().Msgf("[Proxy Server] - [Event]: new primary node has been promoted, updated listener port: %s", addr.Port)
-
-	return nil
 }
 
 func (route *RouteService) Set(args *common.SetArgs, reply *string) error {
 	route.mu.Lock()
 	defer route.mu.Unlock()
 
+	rpcClient, _ := route.ShardOrchestrator.GetShardClientByKey(string(args.Bucket))
+	defer rpcClient.Close()
+
 	log.Info().Msgf("[Proxy Server] - [Event]: Routing %s command to primary node", "SET")
-	route.PrimaryNodeClient.Call("FastDB.Set", args, &reply)
+	rpcClient.Call("FastDB.Set", args, &reply)
 
 	return nil
 }
@@ -42,8 +37,11 @@ func (route *RouteService) Get(args *common.GetArgs, reply *string) error {
 	route.mu.Lock()
 	defer route.mu.Unlock()
 
+	rpcClient, _ := route.ShardOrchestrator.GetShardClientByKey(string(args.Bucket))
+	defer rpcClient.Close()
+
 	log.Info().Msgf("[Proxy Server] - [Event]: Routing %s command to primary node", "GET")
-	route.PrimaryNodeClient.Call("FastDB.Get", args, &reply)
+	rpcClient.Call("FastDB.Get", args, &reply)
 
 	return nil
 }
@@ -52,8 +50,11 @@ func (route *RouteService) GetAll(args *common.GetAllArgs, reply *map[int]string
 	route.mu.Lock()
 	defer route.mu.Unlock()
 
+	rpcClient, _ := route.ShardOrchestrator.GetShardClientByKey(string(args.Bucket))
+	defer rpcClient.Close()
+
 	log.Info().Msgf("[Proxy Server] - [Event]: Routing %s command to primary node", "GETALL")
-	route.PrimaryNodeClient.Call("FastDB.GetAll", args, &reply)
+	rpcClient.Call("FastDB.GetAll", args, &reply)
 
 	return nil
 }
@@ -62,8 +63,11 @@ func (route *RouteService) Delete(args *common.DeleteArgs, reply *string) error 
 	route.mu.Lock()
 	defer route.mu.Unlock()
 
+	rpcClient, _ := route.ShardOrchestrator.GetShardClientByKey(string(args.Bucket))
+	defer rpcClient.Close()
+
 	log.Info().Msgf("[Proxy Server] - [Event]: Routing %s command to primary node", "DELETE")
-	route.PrimaryNodeClient.Call("FastDB.Delete", args, &reply)
+	rpcClient.Call("FastDB.Delete", args, &reply)
 
 	return nil
 }
