@@ -1,15 +1,20 @@
 package controller
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"lab02_replication/common"
 	"lab02_replication/server/fastdb_rpc/operation"
 	"lab02_replication/server/replication_rpc/core"
 	"log"
 	"net/rpc"
+	"reflect"
+
 	"strconv"
 	"sync"
 	"time"
+
+	blake2b "github.com/minio/blake2b-simd"
 
 	"github.com/marcelloh/fastdb"
 )
@@ -158,6 +163,27 @@ func (p *FastDBService) Delete(args *common.DeleteArgs, reply *string) error {
 	}
 
 	return nil
+}
+
+func (p *FastDBService) GetAllBucketsInRange(start uint64, end uint64) []string {
+	value := reflect.ValueOf(p.Repository).Elem().FieldByName("keys")
+	buckets := make([]string, 0, value.Len())
+
+	if value.IsValid() && value.Kind() == reflect.Map {
+		for _, bucket := range value.MapKeys() {
+			hashBucket := p.hash(bucket.String())
+			if hashBucket >= uint64(start) && hashBucket <= uint64(end) {
+				buckets = append(buckets, bucket.String())
+			}
+		}
+	}
+
+	return buckets
+}
+
+func (p *FastDBService) hash(key string) uint64 {
+	out := blake2b.Sum512([]byte(key))
+	return binary.LittleEndian.Uint64(out[:])
 }
 
 func (p *FastDBService) BroadcastOperationToPeers(operation *operation.Operation) {

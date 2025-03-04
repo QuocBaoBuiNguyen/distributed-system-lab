@@ -2,13 +2,13 @@
 package main
 
 import (
+	"lab02_replication/proxy/router"
+	"lab02_replication/proxy/shard"
 	"log"
 	"net"
 	"net/rpc"
 	"os"
 	"os/signal"
-	"lab02_replication/proxy/router"
-	
 )
 
 func checkError(err error) {
@@ -24,9 +24,12 @@ func main() {
 
 	rpcServer := rpc.NewServer()
 
-	routeService := &router.RouteService{
-		PrimaryNodeClient: nil,
-	}
+	shardOrchestrator := shard.NewShardOrchestrator()
+
+	err = rpcServer.RegisterName("ShardOrchestrator", shardOrchestrator)
+	checkError(err)
+
+	routeService := router.NewRouteService(shardOrchestrator)
 
 	err = rpcServer.RegisterName("ProxyServer", routeService)
 	checkError(err)
