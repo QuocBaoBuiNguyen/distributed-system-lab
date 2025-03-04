@@ -1,7 +1,7 @@
 package core
 
 import (
-	"errors"
+	"fmt"
 	"net/rpc"
 	"os"
 	"strings"
@@ -13,14 +13,8 @@ import (
 	"lab02_replication/server/replication_rpc/event"
 )
 
-var nodeAddressByID = map[string]string{
-	"node-01": ":6001",
-	"node-02": ":6002",
-	"node-03": ":6003",
-	"node-04": ":6004",
-}
-
 type Node struct {
+	ShardID  string
 	ID       string
 	Addr     string
 	Peers    *Peers
@@ -29,25 +23,19 @@ type Node struct {
 	isLeader bool
 }
 
-func getNodeID() (string, error) {
-	if len(os.Args) < 2 {
-		return "", errors.New("node id required")
-	}
-
-	nodeID := os.Args[1]
-	return nodeID, nil
-}
-
 func NewNode() *Node {
-	nodeID, _ := getNodeID()
+
+	shardID, port := validateAndGetInput()
 
 	node := &Node{
-		ID:       nodeID,
-		Addr:     nodeAddressByID[nodeID],
+		Addr:     getPort(port),
+		ShardID:  shardID,
 		Peers:    NewPeers(),
 		Proxy:    NewProxyServer(),
 		eventBus: event.NewBus(),
 	}
+
+	node.ID = node.GetNodeID(port)
 
 	node.eventBus.Subscribe(event.LeaderElected, node.HealthCheckLeader)
 
@@ -58,6 +46,7 @@ func (node *Node) HealthCheckLeader(_ string, payload any) {
 	leaderID := payload.(string)
 
 ping:
+	log.Info().Msgf("Ping Leader %s!", leaderID)
 	leader := node.Peers.Get(leaderID)
 	if leader == nil {
 		log.Error().Msgf("%s, %s, %s", node.ID, leaderID, node.Peers.ToIDs())
@@ -81,21 +70,42 @@ ping:
 	}
 }
 
+func (node *Node) RegisterNodeToShard(addr string, shardID string) {
+	node.Proxy.RegisterNodeToShard(addr, shardID)
+}
+
 func (node *Node) RegisterWithPeers() {
-	for peerID, peerAddr := range nodeAddressByID {
-		if node.IsItself(peerID) {
-			continue
-		}
+	ports := node.Proxy.GetNodesAddrByShardID(node.ShardID)
 
-		rpcClient := node.connect(peerAddr)
-		pingMessage := event.Message{FromPeerID: node.ID, Type: event.PING}
-		reply, _ := node.SendPeerRequest(rpcClient, pingMessage)
+	log.Info().Msgf("Node %s - shard %s is aware of peers %v", node.ID, node.ShardID, ports)
+	nodeAddressByID := make(map[string]string)
 
-		if reply.IsPongMessage() {
-			log.Debug().Msgf("%s got pong message from %s", node.ID, peerID)
-			node.Peers.Add(peerID, rpcClient)
+	for _, port := range ports {
+		nodeID := node.GetNodeID(strings.TrimPrefix(port, ":")) // Generate dynamic node ID
+		nodeAddressByID[nodeID] = port                          // Assign port value with ":"
+	}
+
+	if len(nodeAddressByID) == 0 {
+		return
+	} else {
+		for peerID, peerAddr := range nodeAddressByID {
+			if node.IsItself(peerID) {
+				continue
+			}
+
+			log.Info().Msgf("%s is connecting to %s, address %s", node.ID, peerID, peerAddr)
+
+			rpcClient := node.Connect(peerAddr)
+			pingMessage := event.Message{FromPeerID: node.ID, Type: event.PING}
+			reply, _ := node.SendPeerRequest(rpcClient, pingMessage)
+
+			if reply.IsPongMessage() {
+				log.Info().Msgf("%s got pong message from %s", node.ID, peerID)
+				node.Peers.Add(peerID, peerAddr, rpcClient)
+			}
 		}
 	}
+
 }
 
 func (node *Node) SendPeerRequest(rpcClient *rpc.Client, message event.Message) (event.Message, error) {
@@ -111,6 +121,7 @@ func (node *Node) SendPeerRequest(rpcClient *rpc.Client, message event.Message) 
 }
 
 func (node *Node) StartLeaderElection() {
+	node.RegisterNodeToShard(node.Addr, node.ShardID)
 	node.RegisterWithPeers()
 	log.Info().Msgf("%s is aware of own peers %s", node.ID, node.Peers.ToIDs())
 
@@ -133,7 +144,7 @@ func (node *Node) TriggerLeaderElection() {
 			continue
 		}
 
-		log.Debug().Msgf("%s send ELECTION message to peer %s", node.ID, peer.ID)
+		log.Info().Msgf("%s send ELECTION message to peer %s", node.ID, peer.ID)
 
 		electionMessage := event.Message{FromPeerID: node.ID, Type: event.ELECTION}
 
@@ -150,8 +161,8 @@ func (node *Node) TriggerLeaderElection() {
 		electedMessage := event.Message{FromPeerID: leaderID, Type: event.ELECTED}
 		log.Info().Msgf("%s is a new leader", node.ID)
 		node.BroadcastToPeers(electedMessage)
-		node.Proxy.PrimaryNodeProxyUpdate(node.Addr)
-		node.isLeader = true;
+		node.Proxy.NotifyShardLeaderChange(node.ShardID, node.Addr)
+		node.isLeader = true
 	}
 }
 
@@ -183,7 +194,7 @@ func (node *Node) BroadcastToPeers(message event.Message) {
 	}
 }
 
-func (node *Node) connect(peerAddr string) *rpc.Client {
+func (node *Node) Connect(peerAddr string) *rpc.Client {
 retry:
 	client, err := rpc.Dial("tcp", peerAddr)
 	if err != nil {
@@ -199,5 +210,29 @@ func (node *Node) IsItself(id string) bool {
 }
 
 func (node *Node) IsLeader() bool {
-	return node.isLeader;
+	return node.isLeader
+}
+
+func getPort(port string) string {
+	port = fmt.Sprintf(":%s", port)
+	return port
+}
+
+func (node *Node) GetNodeID(port string) string {
+	nodeID := fmt.Sprintf("node-%s", port)
+	return nodeID
+}
+
+func validateAndGetInput() (string, string) {
+	if len(os.Args) < 2 {
+		log.Fatal().Msg("shard required")
+	}
+	shardID := os.Args[1]
+
+	if len(os.Args) < 3 {
+		log.Fatal().Msg("port required")
+	}
+	port := os.Args[2]
+
+	return shardID, port
 }
