@@ -26,7 +26,7 @@ func main() {
 	repository, _ := config.InitializeDB()
 	fastdb, _ := config.RegisterRPCService(rpcServer, repository, node)
 
-	config.RegisterRPCShardServer(rpcServer, fastdb)
+	config.RegisterRPCShardServer(rpcServer, fastdb, node)
 
 	log.Info().Msgf("FastDB Node - [Event]: %s is running on port %s, listening to proxy server at %s", node.ID, node.Addr, "1234")
 

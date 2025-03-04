@@ -33,6 +33,10 @@ type GetNodesByShardIDRes struct {
 	Ports []string
 }
 
+type NotifyNodesInShardArgs struct {
+	Ports []string
+}
+
 type HashRange struct {
 	Start uint64
 	End   uint64

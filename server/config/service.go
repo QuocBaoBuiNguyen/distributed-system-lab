@@ -24,8 +24,8 @@ func RegisterRPCNodeReplication(rpcServer *rpc.Server, node *core.Node) error {
 	return err
 }
 
-func RegisterRPCShardServer(rpcServer *rpc.Server, fastDBService *controller.FastDBService) error {
-	shardServer := shard.NewShardService(fastDBService)
+func RegisterRPCShardServer(rpcServer *rpc.Server, fastDBService *controller.FastDBService, node *core.Node) error {
+	shardServer := shard.NewShardService(fastDBService, node)
 	err := rpcServer.RegisterName("ShardServer", shardServer)
 	utils.CheckError(err)
 	return err

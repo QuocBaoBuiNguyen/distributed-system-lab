@@ -28,13 +28,14 @@ func NewNode() *Node {
 	shardID, port := validateAndGetInput()
 
 	node := &Node{
-		ID:       getNodeID(port),
 		Addr:     getPort(port),
 		ShardID:  shardID,
 		Peers:    NewPeers(),
 		Proxy:    NewProxyServer(),
 		eventBus: event.NewBus(),
 	}
+
+	node.ID = node.GetNodeID(port)
 
 	node.eventBus.Subscribe(event.LeaderElected, node.HealthCheckLeader)
 
@@ -45,6 +46,7 @@ func (node *Node) HealthCheckLeader(_ string, payload any) {
 	leaderID := payload.(string)
 
 ping:
+	log.Info().Msgf("Ping Leader %s!", leaderID)
 	leader := node.Peers.Get(leaderID)
 	if leader == nil {
 		log.Error().Msgf("%s, %s, %s", node.ID, leaderID, node.Peers.ToIDs())
@@ -75,11 +77,12 @@ func (node *Node) RegisterNodeToShard(addr string, shardID string) {
 func (node *Node) RegisterWithPeers() {
 	ports := node.Proxy.GetNodesAddrByShardID(node.ShardID)
 
+	log.Info().Msgf("Node %s - shard %s is aware of peers %v", node.ID, node.ShardID, ports)
 	nodeAddressByID := make(map[string]string)
 
 	for _, port := range ports {
-		nodeID := fmt.Sprintf("node-%s", port)             // Generate dynamic node ID
-		nodeAddressByID[nodeID] = fmt.Sprintf(":%s", port) // Assign port value with ":"
+		nodeID := node.GetNodeID(strings.TrimPrefix(port, ":")) // Generate dynamic node ID
+		nodeAddressByID[nodeID] = port                          // Assign port value with ":"
 	}
 
 	if len(nodeAddressByID) == 0 {
@@ -90,13 +93,15 @@ func (node *Node) RegisterWithPeers() {
 				continue
 			}
 
-			rpcClient := node.connect(peerAddr)
+			log.Info().Msgf("%s is connecting to %s, address %s", node.ID, peerID, peerAddr)
+
+			rpcClient := node.Connect(peerAddr)
 			pingMessage := event.Message{FromPeerID: node.ID, Type: event.PING}
 			reply, _ := node.SendPeerRequest(rpcClient, pingMessage)
 
 			if reply.IsPongMessage() {
-				log.Debug().Msgf("%s got pong message from %s", node.ID, peerID)
-				node.Peers.Add(peerID, rpcClient)
+				log.Info().Msgf("%s got pong message from %s", node.ID, peerID)
+				node.Peers.Add(peerID, peerAddr, rpcClient)
 			}
 		}
 	}
@@ -139,7 +144,7 @@ func (node *Node) TriggerLeaderElection() {
 			continue
 		}
 
-		log.Debug().Msgf("%s send ELECTION message to peer %s", node.ID, peer.ID)
+		log.Info().Msgf("%s send ELECTION message to peer %s", node.ID, peer.ID)
 
 		electionMessage := event.Message{FromPeerID: node.ID, Type: event.ELECTION}
 
@@ -189,7 +194,7 @@ func (node *Node) BroadcastToPeers(message event.Message) {
 	}
 }
 
-func (node *Node) connect(peerAddr string) *rpc.Client {
+func (node *Node) Connect(peerAddr string) *rpc.Client {
 retry:
 	client, err := rpc.Dial("tcp", peerAddr)
 	if err != nil {
@@ -213,7 +218,7 @@ func getPort(port string) string {
 	return port
 }
 
-func getNodeID(port string) string {
+func (node *Node) GetNodeID(port string) string {
 	nodeID := fmt.Sprintf("node-%s", port)
 	return nodeID
 }
